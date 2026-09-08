@@ -31,7 +31,7 @@ export default function ChatPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { weatherData, themeStyles } = useWeatherTheme();
-  const supabase = createClientBrowser();
+  const supabase = React.useMemo(() => createClientBrowser(), []);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
