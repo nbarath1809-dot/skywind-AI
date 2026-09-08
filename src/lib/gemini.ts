@@ -16,7 +16,9 @@ export interface WeatherInsights {
 }
 
 // Generate structured weather reports using Gemini
-export async function generateWeatherInsights(weatherData: WeatherData): Promise<WeatherInsights> {
+export async function generateWeatherInsights(
+  weatherData: WeatherData
+): Promise<WeatherInsights> {
   if (!apiKey) {
     return {
       summary: `Weather insights for ${weatherData.city} are currently unavailable because the Gemini API key is missing.`,
@@ -30,8 +32,10 @@ export async function generateWeatherInsights(weatherData: WeatherData): Promise
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash'
+    });
+
     const prompt = `
       You are the expert meteorological AI engine for "SkyMind AI Weather".
       Analyze the following weather data for ${weatherData.city}, ${weatherData.country} (${weatherData.state || ''}) and generate professional predictions, recommendations, and advisories.
@@ -39,15 +43,25 @@ export async function generateWeatherInsights(weatherData: WeatherData): Promise
       Weather Data:
       - Latitude: ${weatherData.latitude}, Longitude: ${weatherData.longitude}
       - Current Conditions: Temp: ${weatherData.current.temp}°C (Feels like ${weatherData.current.feelsLike}°C), Humidity: ${weatherData.current.humidity}%, Wind: ${weatherData.current.windSpeed} km/h, UV: ${weatherData.current.uvIndex}, Visibility: ${weatherData.current.visibility}m, Pressure: ${weatherData.current.pressure} hPa, Weather Code: ${weatherData.current.weatherCode} (${weatherData.current.conditionText}).
-      - Air Quality: US AQI: ${weatherData.airQuality.aqi} (${weatherData.airQuality.description}), PM2.5: ${weatherData.airQuality.pm25} µg/m³, PM10: ${weatherData.airQuality.pm10} µg/m³, Ozone: ${weatherData.airQuality.o3} ppb.
+      - Air Quality: US AQI: ${weatherData.airQuality.aqi} (${weatherData.airQuality.description}), PM2.5: ${weatherData.airQuality.pm25} µg/m³, PM10: ${weatherData.airQuality.pm10} ppb.
       - Next 7 Days (Max Temp / Min Temp / Rain Probability):
-        ${weatherData.daily.date.map((date, idx) => `  * ${date}: Max ${weatherData.daily.tempMax[idx]}°C, Min ${weatherData.daily.tempMin[idx]}°C, Rain Prob: ${weatherData.daily.rainProbMax[idx]}%, UV Max: ${weatherData.daily.uvIndexMax[idx]}`).join('\n')}
+        ${weatherData.daily.date
+          .map(
+            (date, idx) =>
+              `  * ${date}: Max ${weatherData.daily.tempMax[idx]}°C, Min ${weatherData.daily.tempMin[idx]}°C, Rain Prob: ${weatherData.daily.rainProbMax[idx]}%, UV Max: ${weatherData.daily.uvIndexMax[idx]}`
+          )
+          .join('\n')}
 
       Generate insights based STRICTLY on this data. You MUST return your response as a valid, parsable JSON object with keys: "summary", "rainPrediction", "stormAlert", "travelRecommendation", "healthAdvisory", "agricultureSuggestion", and "energyConsumption". Make all texts concise and use markdown list items or highlights inside the JSON string values where helpful.
     `;
 
     const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }]
+        }
+      ],
       generationConfig: {
         responseMimeType: 'application/json'
       }
@@ -55,9 +69,14 @@ export async function generateWeatherInsights(weatherData: WeatherData): Promise
 
     const text = result.response.text();
     const parsed = JSON.parse(text) as WeatherInsights;
+
     return parsed;
   } catch (error) {
-    console.error('Error generating weather insights from Gemini:', error);
+    console.error(
+      'Error generating weather insights from Gemini:',
+      error
+    );
+
     return {
       summary: `Failed to compile automated insights for ${weatherData.city} due to an API processing error.`,
       rainPrediction: 'Analysis error.',
@@ -73,7 +92,10 @@ export async function generateWeatherInsights(weatherData: WeatherData): Promise
 // Conversation assistant for AI Chat page
 export async function chatWithWeatherAssistant(
   userMessage: string,
-  history: { role: 'user' | 'model'; parts: { text: string }[] }[],
+  history: {
+    role: 'user' | 'model';
+    parts: { text: string }[];
+  }[],
   weatherData: WeatherData | null
 ): Promise<string> {
   if (!apiKey) {
@@ -81,9 +103,10 @@ export async function chatWithWeatherAssistant(
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
-    // Construct the context-enriched system prompt
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash'
+    });
+
     let systemContext = `You are "SkyMind AI", a professional, friendly, and helpful weather forecasting expert chatbot. 
     Your goal is to answer the user's weather queries, compare conditions, give recommendations for clothing, travel, farming, or activities. 
     Keep your answers concise, engaging, and well-structured using markdown.`;
@@ -96,22 +119,28 @@ export async function chatWithWeatherAssistant(
       - Condition: ${weatherData.current.conditionText} (Code: ${weatherData.current.weatherCode})
       - Air Quality: AQI ${weatherData.airQuality.aqi} (${weatherData.airQuality.description})
       - 7-Day Outlook:
-        ${weatherData.daily.date.map((date, idx) => `  * ${date}: Max ${weatherData.daily.tempMax[idx]}°C, Min ${weatherData.daily.tempMin[idx]}°C, Rain Prob: ${weatherData.daily.rainProbMax[idx]}%`).join('\n')}
+        ${weatherData.daily.date
+          .map(
+            (date, idx) =>
+              ` * ${date}: Max ${weatherData.daily.tempMax[idx]}°C, Min ${weatherData.daily.tempMin[idx]}°C, Rain Prob: ${weatherData.daily.rainProbMax[idx]}%`
+          )
+          .join('\n')}
       Use this context to inform all replies. If the user asks about the weather or recommendations for this location, reference these stats directly.`;
     } else {
       systemContext += `\n\nNo specific city context is selected yet. If the user asks about their weather, politely ask them which city they are interested in, so they can get localized predictions.`;
     }
 
-    // Prepare contents by prepending the system instruction
     const chat = model.startChat({
       history: history.length > 0 ? history : [],
       systemInstruction: systemContext
     });
 
     const response = await chat.sendMessage(userMessage);
+
     return response.response.text();
   } catch (error) {
     console.error('Error in Gemini Chat assistant:', error);
+
     return 'I encountered an error while processing your request. Please try again in a moment.';
   }
 }
