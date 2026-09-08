@@ -1,10 +1,12 @@
 import { GoogleGenAI } from '@google/genai';
-import { WeatherData } from './weather';
+import type { WeatherData } from './weather';
 
 const apiKey = process.env.GEMINI_API_KEY || '';
 
 const ai = apiKey
-  ? new GoogleGenAI({ apiKey })
+  ? new GoogleGenAI({
+      apiKey,
+    })
   : null;
 
 const MODEL = 'gemini-2.5-flash';
@@ -19,6 +21,10 @@ export interface WeatherInsights {
   energyConsumption: string;
 }
 
+/* =========================================================
+   WEATHER INSIGHTS
+   ========================================================= */
+
 export async function generateWeatherInsights(
   weatherData: WeatherData
 ): Promise<WeatherInsights> {
@@ -30,7 +36,7 @@ export async function generateWeatherInsights(
       travelRecommendation: 'No recommendation available.',
       healthAdvisory: 'No advisory available.',
       agricultureSuggestion: 'No suggestions available.',
-      energyConsumption: 'No recommendations available.'
+      energyConsumption: 'No recommendations available.',
     };
   }
 
@@ -41,6 +47,7 @@ You are the expert meteorological AI engine for "SkyMind AI Weather".
 Analyze the following weather data for ${weatherData.city}, ${weatherData.country} (${weatherData.state || ''}).
 
 Weather Data:
+
 - Latitude: ${weatherData.latitude}
 - Longitude: ${weatherData.longitude}
 - Temperature: ${weatherData.current.temp}°C
@@ -54,12 +61,14 @@ Weather Data:
 - Weather Code: ${weatherData.current.weatherCode}
 
 Air Quality:
+
 - AQI: ${weatherData.airQuality.aqi}
 - Description: ${weatherData.airQuality.description}
 - PM2.5: ${weatherData.airQuality.pm25}
 - PM10: ${weatherData.airQuality.pm10}
 
 Next 7 Days:
+
 ${weatherData.daily.date
   .map(
     (date, idx) =>
@@ -67,7 +76,9 @@ ${weatherData.daily.date
   )
   .join('\n')}
 
-Return ONLY valid JSON with these keys:
+Return ONLY valid JSON.
+
+The JSON must contain exactly these keys:
 
 {
   "summary": "",
@@ -80,20 +91,42 @@ Return ONLY valid JSON with these keys:
 }
 
 Base your answer strictly on the supplied weather data.
+
+Do not add markdown.
+Do not add code fences.
+Do not add explanations outside the JSON.
 `;
 
     const response = await ai.models.generateContent({
       model: MODEL,
       contents: prompt,
       config: {
-        responseMimeType: 'application/json'
-      }
+        responseMimeType: 'application/json',
+      },
     });
 
-    const text = response.text || '{}';
+    const text = response.text?.trim() || '{}';
 
-    return JSON.parse(text) as WeatherInsights;
+    const parsed = JSON.parse(text) as WeatherInsights;
 
+    return {
+      summary: parsed.summary || 'No summary available.',
+      rainPrediction:
+        parsed.rainPrediction || 'No rain prediction available.',
+      stormAlert:
+        parsed.stormAlert || 'No storm information available.',
+      travelRecommendation:
+        parsed.travelRecommendation ||
+        'No travel recommendation available.',
+      healthAdvisory:
+        parsed.healthAdvisory || 'No health advisory available.',
+      agricultureSuggestion:
+        parsed.agricultureSuggestion ||
+        'No agriculture suggestion available.',
+      energyConsumption:
+        parsed.energyConsumption ||
+        'No energy recommendation available.',
+    };
   } catch (error) {
     console.error('Gemini Weather Insights Error:', error);
 
@@ -104,11 +137,14 @@ Base your answer strictly on the supplied weather data.
       travelRecommendation: 'Analysis error.',
       healthAdvisory: 'Analysis error.',
       agricultureSuggestion: 'Analysis error.',
-      energyConsumption: 'Analysis error.'
+      energyConsumption: 'Analysis error.',
     };
   }
 }
 
+/* =========================================================
+   CHAT ASSISTANT
+   ========================================================= */
 
 export async function chatWithWeatherAssistant(
   userMessage: string,
@@ -118,47 +154,93 @@ export async function chatWithWeatherAssistant(
   }[],
   weatherData: WeatherData | null
 ): Promise<string> {
-
   if (!ai) {
     return 'Gemini API key is missing. Please configure GEMINI_API_KEY.';
   }
 
   try {
-
     let systemContext = `
 You are "SkyMind AI", a professional, friendly weather assistant.
 
-Your job is to:
-- Answer weather questions
-- Explain weather conditions
-- Give clothing recommendations
-- Give travel recommendations
-- Give farming recommendations
-- Explain weather in simple language
+Your responsibilities:
 
-Keep responses concise, useful and well structured.
+- Answer weather questions.
+- Explain weather conditions.
+- Explain forecasts.
+- Give clothing recommendations.
+- Give travel recommendations.
+- Give farming recommendations.
+- Explain weather information in simple language.
+- Help users understand rain, temperature, humidity, wind, UV and air quality.
+- Give practical and concise advice.
+
+Important rules:
+
+1. Base weather-related answers primarily on the supplied weather data.
+2. Do not invent weather values.
+3. If the supplied data does not contain enough information, clearly say so.
+4. Keep responses concise and useful.
+5. Use simple language.
+6. Do not return JSON unless the user specifically asks for JSON.
 `;
+
+    /* -----------------------------------------------------
+       ADD CURRENT WEATHER CONTEXT
+       ----------------------------------------------------- */
 
     if (weatherData) {
       systemContext += `
 
-Current Weather Context:
+CURRENT WEATHER CONTEXT
 
-City: ${weatherData.city}, ${weatherData.country}
+City:
+${weatherData.city}, ${weatherData.country}
 
-Temperature: ${weatherData.current.temp}°C
-Feels Like: ${weatherData.current.feelsLike}°C
-Humidity: ${weatherData.current.humidity}%
-Wind Speed: ${weatherData.current.windSpeed} km/h
-Wind Direction: ${weatherData.current.windDirection}°
-UV Index: ${weatherData.current.uvIndex}
-Condition: ${weatherData.current.conditionText}
+Current Temperature:
+${weatherData.current.temp}°C
 
-Air Quality:
-AQI: ${weatherData.airQuality.aqi}
-Description: ${weatherData.airQuality.description}
+Feels Like:
+${weatherData.current.feelsLike}°C
 
-7-Day Forecast:
+Humidity:
+${weatherData.current.humidity}%
+
+Wind Speed:
+${weatherData.current.windSpeed} km/h
+
+Wind Direction:
+${weatherData.current.windDirection}°
+
+UV Index:
+${weatherData.current.uvIndex}
+
+Visibility:
+${weatherData.current.visibility}m
+
+Pressure:
+${weatherData.current.pressure} hPa
+
+Condition:
+${weatherData.current.conditionText}
+
+Weather Code:
+${weatherData.current.weatherCode}
+
+AIR QUALITY
+
+AQI:
+${weatherData.airQuality.aqi}
+
+Description:
+${weatherData.airQuality.description}
+
+PM2.5:
+${weatherData.airQuality.pm25}
+
+PM10:
+${weatherData.airQuality.pm10}
+
+7-DAY FORECAST
 
 ${weatherData.daily.date
   .map(
@@ -169,26 +251,42 @@ ${weatherData.daily.date
 `;
     }
 
+    /* -----------------------------------------------------
+       PREPARE CHAT HISTORY
+       ----------------------------------------------------- */
+
     const contents = [
       ...history,
       {
         role: 'user' as const,
-        parts: [{ text: userMessage }]
-      }
+        parts: [
+          {
+            text: userMessage,
+          },
+        ],
+      },
     ];
+
+    /* -----------------------------------------------------
+       CALL GEMINI
+       ----------------------------------------------------- */
 
     const response = await ai.models.generateContent({
       model: MODEL,
       contents,
       config: {
-        systemInstruction: systemContext
-      }
+        systemInstruction: systemContext,
+      },
     });
 
-    return response.text || 'I could not generate a response.';
+    const text = response.text?.trim();
 
+    if (!text) {
+      return 'I could not generate a response. Please try again.';
+    }
+
+    return text;
   } catch (error) {
-
     console.error('Gemini Chat Error:', error);
 
     return 'I encountered an error while communicating with Gemini. Please try again.';
