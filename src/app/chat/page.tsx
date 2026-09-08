@@ -219,7 +219,7 @@ export default function ChatPage() {
       <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between text-xs gap-3 ${themeStyles.cardBg} ${themeStyles.borderColor}`}>
         <div className="flex items-center gap-1.5 font-medium text-slate-300">
           <Bot className="w-4.5 h-4.5 text-sky-400" />
-          <span>Assistant Engine: Gemini 1.5 Flash</span>
+          <span>Assistant Engine: Gemini 2.5 Flash</span>
         </div>
         
         {weatherData ? (
