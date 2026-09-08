@@ -33,7 +33,7 @@ export async function generateWeatherInsights(
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash'
+      model: 'gemini-2.5-flash'
     });
 
     const prompt = `
@@ -104,7 +104,7 @@ export async function chatWithWeatherAssistant(
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash'
+      model: 'gemini-2.5-flash'
     });
 
     let systemContext = `You are "SkyMind AI", a professional, friendly, and helpful weather forecasting expert chatbot. 
